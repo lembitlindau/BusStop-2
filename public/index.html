@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bussipeatuste Väljumisajad</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bussipeatuste Väljumisajad</h1>
+        </header>
+        
+        <main>
+            <section class="departures-container">
+                <div class="stops-tabs">
+                    <!-- Tabs will be populated dynamically -->
+                </div>
+                
+                <div class="departures-display">
+                    <h2 class="selected-stop-name">Laadin...</h2>
+                    <div class="next-departures">
+                        <h3>Järgmised väljumised</h3>
+                        <ul class="departure-list">
+                            <!-- Departures will be populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="admin-panel">
+                <h2>Haldamine</h2>
+                
+                <div class="admin-section">
+                    <h3>Lisa uus peatus</h3>
+                    <form id="add-stop-form">
+                        <div class="form-group">
+                            <label for="stopName">Peatuse nimi:</label>
+                            <input type="text" id="stopName" name="stopName" required>
+                        </div>
+                        <button type="submit" class="btn">Lisa peatus</button>
+                    </form>
+                </div>
+                
+                <div class="admin-section">
+                    <h3>Lisa uus väljumisaeg</h3>
+                    <form id="add-departure-form">
+                        <div class="form-group">
+                            <label for="departureStop">Peatus:</label>
+                            <select id="departureStop" name="departureStop" required>
+                                <!-- Stops will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="departureTime">Väljumisaeg (HH:MM):</label>
+                            <input type="time" id="departureTime" name="departureTime" required>
+                        </div>
+                        <button type="submit" class="btn">Lisa väljumisaeg</button>
+                    </form>
+                </div>
+                
+                <div class="admin-section">
+                    <h3>Halda väljumisaegu</h3>
+                    <div class="manage-departures">
+                        <div class="form-group">
+                            <label for="manageStop">Peatus:</label>
+                            <select id="manageStop" name="manageStop">
+                                <!-- Stops will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="departures-list">
+                            <ul id="manage-departures-list">
+                                <!-- Departures will be populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 Bussipeatuste Rakendus</p>
+        </footer>
+    </div>
+    
+    <script src="/js/app.js"></script>
+</body>
+</html>
