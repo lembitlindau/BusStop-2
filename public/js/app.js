@@ -165,25 +165,49 @@ function renderManageDepartures(departures) {
         return;
     }
     
-    // Sort departures by time
-    departures.sort((a, b) => {
-        return a.departure_time.localeCompare(b.departure_time);
-    });
+    // Group departures by day type
+    const groupedDepartures = {
+        weekday: departures.filter(d => d.day_type === 'weekday'),
+        weekend: departures.filter(d => d.day_type === 'weekend')
+    };
     
-    departures.forEach(departure => {
-        const li = document.createElement('li');
+    // Create headers for each day type
+    const dayTypes = [
+        { type: 'weekday', label: 'Tööpäevad' },
+        { type: 'weekend', label: 'Nädalavahetused' }
+    ];
+    
+    dayTypes.forEach(dayType => {
+        const dayTypeGroup = groupedDepartures[dayType.type];
         
-        const time = document.createElement('span');
-        time.textContent = departure.departure_time;
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.textContent = 'Kustuta';
-        deleteBtn.addEventListener('click', () => deleteDeparture(departure.id));
-        
-        li.appendChild(time);
-        li.appendChild(deleteBtn);
-        manageDeparturesList.appendChild(li);
+        if (dayTypeGroup.length > 0) {
+            // Add day type header
+            const header = document.createElement('h4');
+            header.textContent = dayType.label;
+            manageDeparturesList.appendChild(header);
+            
+            // Sort departures by time
+            dayTypeGroup.sort((a, b) => {
+                return a.departure_time.localeCompare(b.departure_time);
+            });
+            
+            // Add departures for this day type
+            dayTypeGroup.forEach(departure => {
+                const li = document.createElement('li');
+                
+                const time = document.createElement('span');
+                time.textContent = departure.departure_time;
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'Kustuta';
+                deleteBtn.addEventListener('click', () => deleteDeparture(departure.id));
+                
+                li.appendChild(time);
+                li.appendChild(deleteBtn);
+                manageDeparturesList.appendChild(li);
+            });
+        }
     });
 }
 
@@ -259,6 +283,9 @@ async function addDeparture(event) {
     if (!stopId || !departureTime) return;
     
     try {
+        const dayTypeSelect = document.getElementById('dayType');
+        const dayType = dayTypeSelect ? dayTypeSelect.value : 'weekday'; // Default to weekday if select doesn't exist
+        
         const response = await fetch('/api/departures', {
             method: 'POST',
             headers: {
@@ -266,7 +293,8 @@ async function addDeparture(event) {
             },
             body: JSON.stringify({
                 stop_id: stopId,
-                departure_time: departureTime
+                departure_time: departureTime,
+                day_type: dayType
             })
         });
         
@@ -296,6 +324,38 @@ function showError(message) {
     alert(message);
 }
 
+// Delete a stop
+async function deleteStop(stopId) {
+    if (!confirm('Kas olete kindel, et soovite selle peatuse kustutada? Kõik selle peatuse väljumisajad kustutatakse samuti.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/stops/${stopId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete stop');
+        }
+        
+        // Reload stops
+        await loadStops();
+        
+        // If there are stops left, select the first one
+        if (stops.length > 0) {
+            selectStop(stops[0].id);
+        } else {
+            // Clear the departure list if no stops left
+            departureList.innerHTML = '<li>Ühtegi peatust pole</li>';
+            selectedStopName.textContent = '';
+        }
+    } catch (error) {
+        console.error('Error deleting stop:', error);
+        showError('Peatuse kustutamine ebaõnnestus');
+    }
+}
+
 // Set up event listeners
 function setupEventListeners() {
     addStopForm.addEventListener('submit', addStop);
@@ -307,6 +367,22 @@ function setupEventListeners() {
             loadManageDepartures(stopId);
         }
     });
+    
+    // Add delete stop button to admin panel
+    const deleteStopBtn = document.createElement('button');
+    deleteStopBtn.id = 'delete-stop-btn';
+    deleteStopBtn.className = 'btn delete-btn';
+    deleteStopBtn.textContent = 'Kustuta valitud peatus';
+    deleteStopBtn.addEventListener('click', () => {
+        const stopId = parseInt(manageStopSelect.value);
+        if (stopId) {
+            deleteStop(stopId);
+        }
+    });
+    
+    // Add the button after the manage stop select
+    const manageStopContainer = document.querySelector('.manage-departures .form-group');
+    manageStopContainer.appendChild(deleteStopBtn);
     
     // Auto-refresh departures every minute
     setInterval(() => {
