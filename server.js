@@ -37,6 +37,7 @@ function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       stop_id INTEGER,
       departure_time TEXT NOT NULL,
+      day_type TEXT NOT NULL DEFAULT 'weekday',
       FOREIGN KEY (stop_id) REFERENCES stops (id)
     )`);
 
@@ -60,8 +61,34 @@ function initDb() {
         // Add some sample departure times
         setTimeout(() => {
           const sampleDepartures = [
-            { stop: "Lehmja", times: ["07:30", "08:15", "09:00", "12:30", "16:45", "18:00"] },
-            { stop: "Tornimäe", times: ["07:45", "08:30", "09:15", "12:45", "17:00", "18:15"] }
+            { 
+              stop: "Lehmja", 
+              times: [
+                { time: "07:30", dayType: "weekday" },
+                { time: "08:15", dayType: "weekday" },
+                { time: "09:00", dayType: "weekday" },
+                { time: "12:30", dayType: "weekday" },
+                { time: "16:45", dayType: "weekday" },
+                { time: "18:00", dayType: "weekday" },
+                { time: "09:30", dayType: "weekend" },
+                { time: "12:00", dayType: "weekend" },
+                { time: "15:30", dayType: "weekend" }
+              ]
+            },
+            { 
+              stop: "Tornimäe", 
+              times: [
+                { time: "07:45", dayType: "weekday" },
+                { time: "08:30", dayType: "weekday" },
+                { time: "09:15", dayType: "weekday" },
+                { time: "12:45", dayType: "weekday" },
+                { time: "17:00", dayType: "weekday" },
+                { time: "18:15", dayType: "weekday" },
+                { time: "09:45", dayType: "weekend" },
+                { time: "12:15", dayType: "weekend" },
+                { time: "15:45", dayType: "weekend" }
+              ]
+            }
           ];
 
           sampleDepartures.forEach(stopData => {
@@ -69,13 +96,13 @@ function initDb() {
               if (err) {
                 console.error(err.message);
               } else if (row) {
-                stopData.times.forEach(time => {
-                  db.run("INSERT INTO departures (stop_id, departure_time) VALUES (?, ?)",
-                    [row.id, time], function(err) {
+                stopData.times.forEach(timeData => {
+                  db.run("INSERT INTO departures (stop_id, departure_time, day_type) VALUES (?, ?, ?)",
+                    [row.id, timeData.time, timeData.dayType], function(err) {
                     if (err) {
                       console.error(err.message);
                     } else {
-                      console.log(`Added departure time ${time} for stop ${stopData.stop}`);
+                      console.log(`Added ${timeData.dayType} departure time ${timeData.time} for stop ${stopData.stop}`);
                     }
                   });
                 });
@@ -118,20 +145,46 @@ app.post('/api/stops', (req, res) => {
   });
 });
 
+// Delete a stop
+app.delete('/api/stops/:id', (req, res) => {
+  const stopId = req.params.id;
+  
+  // First delete all departures associated with this stop
+  db.run("DELETE FROM departures WHERE stop_id = ?", [stopId], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // Then delete the stop itself
+    db.run("DELETE FROM stops WHERE id = ?", [stopId], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json({ message: "Stop deleted", changes: this.changes });
+    });
+  });
+});
+
 // Get next 3 departures for a stop
 app.get('/api/departures/:stopId/next', (req, res) => {
   const stopId = req.params.stopId;
   const now = new Date();
   const timeStr = now.toTimeString().substring(0, 5); // Get current time in format HH:MM
+  
+  // Check if today is a weekend (0 = Sunday, 6 = Saturday)
+  const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+  const dayType = isWeekend ? 'weekend' : 'weekday';
 
   db.all(
-    `SELECT d.id, d.departure_time, s.name as stop_name 
+    `SELECT d.id, d.departure_time, d.day_type, s.name as stop_name 
      FROM departures d 
      JOIN stops s ON d.stop_id = s.id 
-     WHERE d.stop_id = ? AND d.departure_time >= ?
+     WHERE d.stop_id = ? AND d.departure_time >= ? AND d.day_type = ?
      ORDER BY d.departure_time ASC
      LIMIT 3`,
-    [stopId, timeStr],
+    [stopId, timeStr, dayType],
     (err, rows) => {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -145,29 +198,36 @@ app.get('/api/departures/:stopId/next', (req, res) => {
 // Get all departures for a stop
 app.get('/api/departures/:stopId', (req, res) => {
   const stopId = req.params.stopId;
+  const dayType = req.query.dayType || 'all'; // Optional query parameter for filtering by day type
 
-  db.all(
-    `SELECT d.id, d.departure_time, s.name as stop_name 
-     FROM departures d 
-     JOIN stops s ON d.stop_id = s.id 
-     WHERE d.stop_id = ?
-     ORDER BY d.departure_time ASC`,
-    [stopId],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(rows);
+  let query = `SELECT d.id, d.departure_time, d.day_type, s.name as stop_name 
+               FROM departures d 
+               JOIN stops s ON d.stop_id = s.id 
+               WHERE d.stop_id = ?`;
+  
+  const params = [stopId];
+  
+  if (dayType !== 'all') {
+    query += ` AND d.day_type = ?`;
+    params.push(dayType);
+  }
+  
+  query += ` ORDER BY d.day_type, d.departure_time ASC`;
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
     }
-  );
+    res.json(rows);
+  });
 });
 
 // Add a new departure time
 app.post('/api/departures', (req, res) => {
-  const { stop_id, departure_time } = req.body;
-  if (!stop_id || !departure_time) {
-    res.status(400).json({ error: "Stop ID and departure time are required" });
+  const { stop_id, departure_time, day_type } = req.body;
+  if (!stop_id || !departure_time || !day_type) {
+    res.status(400).json({ error: "Stop ID, departure time, and day type are required" });
     return;
   }
 
@@ -177,10 +237,16 @@ app.post('/api/departures', (req, res) => {
     res.status(400).json({ error: "Departure time must be in format HH:MM" });
     return;
   }
+  
+  // Validate day type
+  if (day_type !== 'weekday' && day_type !== 'weekend') {
+    res.status(400).json({ error: "Day type must be 'weekday' or 'weekend'" });
+    return;
+  }
 
   db.run(
-    "INSERT INTO departures (stop_id, departure_time) VALUES (?, ?)",
-    [stop_id, departure_time],
+    "INSERT INTO departures (stop_id, departure_time, day_type) VALUES (?, ?, ?)",
+    [stop_id, departure_time, day_type],
     function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -189,7 +255,8 @@ app.post('/api/departures', (req, res) => {
       res.json({
         id: this.lastID,
         stop_id,
-        departure_time
+        departure_time,
+        day_type
       });
     }
   );

@@ -192,6 +192,15 @@ main {
     margin-top: 15px;
 }
 
+#manage-departures-list h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--secondary-color);
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+}
+
 #manage-departures-list li {
     display: flex;
     justify-content: space-between;
@@ -209,6 +218,13 @@ main {
     padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
+}
+
+#delete-stop-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 8px;
+    font-weight: bold;
 }
 
 .delete-btn:hover {
