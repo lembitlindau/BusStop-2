@@ -6,7 +6,7 @@ const path = require('path');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -214,8 +214,10 @@ app.get('/', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT} at ${new Date().toISOString()}`);
+  console.log(`Server hostname: ${require('os').hostname()}`);
+  console.log(`Server IP: 0.0.0.0 (all interfaces)`);
 });
 
 // Close the database connection when the server is stopped
