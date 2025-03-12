@@ -170,23 +170,21 @@ app.delete('/api/stops/:id', (req, res) => {
 // Get next 3 departures for a stop
 app.get('/api/departures/:stopId/next', (req, res) => {
   const stopId = req.params.stopId;
-  
-  // Use the current local time directly without additional timezone adjustments
-  // since we're already in GMT+2
   const now = new Date();
-  // Format time as HH:MM
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const timeStr = `${hours}:${minutes}`;
+  
+  // Adjust to GMT+2 timezone
+  const gmtPlus2 = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+  const timeStr = gmtPlus2.toTimeString().substring(0, 5); // Get current time in format HH:MM
   
   // Check if today is a weekend (0 = Sunday, 6 = Saturday)
-  const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+  const isWeekend = gmtPlus2.getDay() === 0 || gmtPlus2.getDay() === 6;
   const dayType = isWeekend ? 'weekend' : 'weekday';
 
   // Log for debugging
-  console.log(`Current time: ${timeStr}, Day type: ${dayType}`);
+  console.log(`Current time (GMT+2): ${timeStr}, Day type: ${dayType}`);
 
   // First get all departures for the day and filter in JavaScript
+  // This gives us more control than relying on string comparison in SQLite
   db.all(
     `SELECT d.id, d.departure_time, d.day_type, s.name as stop_name 
      FROM departures d 
@@ -304,12 +302,9 @@ app.get('/', (req, res) => {
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
   const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const timeStr = `${hours}:${minutes}`;
-  
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Current local time: ${timeStr}`);
+  const gmtPlus2 = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+  console.log(`Server is running on port ${PORT} at ${now.toISOString()} (UTC)`);
+  console.log(`Current time in GMT+2: ${gmtPlus2.toISOString()}`);
   console.log(`Server hostname: ${require('os').hostname()}`);
   console.log(`Server IP: 0.0.0.0 (all interfaces)`);
 });
